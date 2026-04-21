@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Certificates — The Archive</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600;1,700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/archive.css">
+  <style>
+    .cert-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+
+    .cert-card {
+      background: var(--bg-card);
+      border: 2px solid rgba(200,168,75,0.30);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+      transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s;
+    }
+    .cert-card:hover {
+      box-shadow: 0 8px 40px rgba(200,168,75,0.15);
+      transform: translateY(-2px);
+      border-color: rgba(200,168,75,0.55);
+    }
+    .cert-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--gold-dim), var(--gold-bright), var(--gold-dim));
+    }
+    .cert-watermark {
+      position: absolute; bottom: 12px; right: 16px;
+      font-family: var(--serif); font-style: italic;
+      font-size: 64px; font-weight: 600;
+      color: rgba(200,168,75,0.06);
+      user-select: none; pointer-events: none; line-height: 1;
+    }
+    .cert-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(200,168,75,0.12);
+      color: var(--gold-bright);
+      border: 1px solid rgba(200,168,75,0.25);
+      border-radius: 99px; padding: 3px 10px;
+      font-size: 11px; font-weight: 600; margin-bottom: 14px;
+    }
+    .cert-course {
+      font-family: var(--serif); font-style: italic;
+      font-size: 20px; font-weight: 600;
+      color: var(--text); margin-bottom: 8px; line-height: 1.3;
+    }
+    .cert-date { font-size: 12px; color: var(--text-3); margin-bottom: 4px; }
+    .cert-number { font-size: 11px; color: var(--text-3); font-family: 'Courier New', monospace; }
+    .cert-actions { display: flex; gap: 8px; margin-top: 18px; }
+
+    /* Download button with gold glow */
+    .btn-primary {
+      background: var(--gold); color: #0F0D0B;
+      border: 1.5px solid var(--gold); font-weight: 700;
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+    .btn-primary:hover {
+      background: var(--gold-bright);
+      border-color: var(--gold-bright);
+      box-shadow: 0 0 16px rgba(200,168,75,0.35);
+    }
+    .btn-outline {
+      background: transparent; color: var(--gold);
+      border: 1.5px solid rgba(200,168,75,0.35); font-weight: 600;
+    }
+    .btn-outline:hover { background: rgba(200,168,75,0.08); border-color: var(--gold); }
+    .btn-ghost { background: transparent; color: var(--text-2); border: 1.5px solid rgba(200,168,75,0.15); }
+    .btn-ghost:hover { border-color: rgba(200,168,75,0.35); color: var(--text); }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.80);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 300; animation: fadeIn 0.14s ease;
+    }
+    .modal-box {
+      background: var(--bg-card);
+      border: 1px solid rgba(200,168,75,0.20);
+      border-radius: var(--radius-lg);
+      padding: 24px; width: 96vw; max-width: 960px;
+      box-shadow: var(--shadow-lg);
+      animation: scaleIn 0.16s ease;
+      max-height: 90vh; overflow-y: auto;
+    }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .modal-title {
+      font-family: var(--serif); font-style: italic;
+      font-size: 20px; font-weight: 600; color: var(--text);
+    }
+    .modal-close { background: none; border: none; cursor: pointer; color: var(--text-3); padding: 4px; }
+    .modal-close:hover { color: var(--text); }
+
+    /* Certificate preview: dark bg with gold/cream text */
+    .cert-svg-wrap {
+      border: 1px solid rgba(200,168,75,0.20);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--bg-2);
+    }
+    .cert-svg-wrap svg { width: 100%; height: auto; display: block; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 80px 40px; }
+    .empty-icon { width: 64px; height: 64px; color: var(--text-3); margin: 0 auto 20px; }
+    .empty-title { font-family: var(--serif); font-style: italic; font-size: 22px; color: var(--text-2); margin-bottom: 8px; }
+    .empty-sub { font-size: 14px; color: var(--text-3); line-height: 1.6; }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes scaleIn { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-title">The Archive</div>
+      <div class="brand-sub">Music School</div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/student-dashboard.html" class="nav-item" id="nav-dashboard">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        Dashboard
+      </a>
+      <a href="/course-catalog.html" class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        Library
+      </a>
+      <a href="/my-lessons.html" class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        My Lessons
+      </a>
+      <a href="/live-classes.html" class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+        Live Classes
+      </a>
+      <a href="/certificates.html" class="nav-item active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
+        Certificates
+      </a>
+      <a href="/payments.html" class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Payments
+      </a>
+      <a href="/announcements.html" class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        Announcements
+      </a>
+      <a href="/resource-library.html" class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Resources
+      </a>
+      <a href="/sheet-music.html" class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        Sheet Music
+      </a>
+      <a href="/archive-browse.html" class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+        Archive
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user" onclick="handleLogout()">
+        <div class="sidebar-avatar" id="sb-avatar">—</div>
+        <div class="sidebar-user-info">
+          <div class="user-name" id="sb-name">Loading…</div>
+          <div class="user-role">Student</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-wrap">
+    <header class="topbar">
+      <div class="topbar-title">My Certificates</div>
+      <div class="topbar-actions">
+        <div class="topbar-avatar" id="topbar-avatar">—</div>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <div class="page-header" style="margin-bottom:28px;">
+        <h1 class="page-title">My Certificates</h1>
+        <p class="page-subtitle">Certificates earned by completing courses at The Archive Music School.</p>
+      </div>
+
+      <div id="cert-container">
+        <div class="card skeleton" style="height:200px;"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Certificate Modal -->
+<div class="modal-overlay" id="cert-modal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-course-title">Certificate</div>
+      <button class="modal-close" onclick="closeModal()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="cert-svg-wrap" id="modal-svg-wrap"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="modal-download-btn" onclick="downloadCert()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download SVG
+      </button>
+      <button class="btn btn-outline" onclick="shareCert()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        Share
+      </button>
+      <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+<script src="/assets/js/api.js"></script>
+<script src="/assets/js/auth-guard.js"></script>
+<script>
+  let currentCertId = null;
+  let currentCertNumber = null;
+
+  function toast(msg, type = 'success') {
+    const tc = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    t.className = `toast${type === 'error' ? ' error' : ''}`;
+    t.textContent = msg;
+    tc.appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+  }
+
+  function handleLogout() {
+    localStorage.removeItem('archive_token');
+    localStorage.removeItem('archive_user');
+    window.location.href = '/index.html';
+  }
+
+  function formatDate(str) {
+    if (!str) return '—';
+    return new Date(str).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  document.addEventListener('userLoaded', (e) => {
+    const user = e.detail;
+    document.getElementById('sb-avatar').textContent = user.avatar_initials || (user.first_name[0] + user.last_name[0]);
+    document.getElementById('sb-name').textContent = user.first_name + ' ' + user.last_name;
+    document.getElementById('topbar-avatar').textContent = user.avatar_initials || (user.first_name[0] + user.last_name[0]);
+    document.getElementById('nav-dashboard').href = user.role === 'instructor' ? '/instructor-dashboard.html' : '/student-dashboard.html';
+    loadCertificates();
+  });
+
+  async function loadCertificates() {
+    try {
+      const data = await api.get('/api/certificates/me');
+      renderCertificates(data.certificates);
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
+  function renderCertificates(certs) {
+    const container = document.getElementById('cert-container');
+    if (!certs || certs.length === 0) {
+      container.innerHTML = `
+        <div class="card empty-state">
+          <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="8" r="6"/>
+            <path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/>
+          </svg>
+          <div class="empty-title">No certificates yet.</div>
+          <p class="empty-sub">Complete a course to earn your first certificate from The Archive Music School.</p>
+          <a href="/course-catalog.html" class="btn btn-primary" style="display:inline-flex;margin-top:16px;text-decoration:none;">Browse Courses →</a>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = `<div class="cert-grid">${certs.map(cert => `
+      <div class="cert-card">
+        <div class="cert-watermark">✦</div>
+        <div class="cert-badge">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
+          Certificate of Completion
+        </div>
+        <div class="cert-course">${cert.course_title || 'Course'}</div>
+        <div class="cert-date">Completed on ${formatDate(cert.issued_at)}</div>
+        <div class="cert-number">${cert.certificate_number || '—'}</div>
+        <div class="cert-actions">
+          <button class="btn btn-primary" style="font-size:12px;" onclick="viewCert(${cert.id}, '${(cert.course_title || '').replace(/'/g, "\\'")}', '${cert.certificate_number || ''}')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            View
+          </button>
+          <button class="btn btn-outline" style="font-size:12px;" onclick="downloadCertById(${cert.id}, '${cert.certificate_number || 'certificate'}')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download
+          </button>
+        </div>
+      </div>
+    `).join('')}</div>`;
+  }
+
+  async function viewCert(id, courseTitle, certNumber) {
+    currentCertId = id;
+    currentCertNumber = certNumber;
+    document.getElementById('modal-course-title').textContent = courseTitle;
+    document.getElementById('modal-svg-wrap').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-3);">Loading…</div>';
+    document.getElementById('cert-modal').style.display = 'flex';
+
+    try {
+      const resp = await fetch(`/api/certificates/${id}/download`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('archive_token')}` }
+      });
+      const svgText = await resp.text();
+      document.getElementById('modal-svg-wrap').innerHTML = svgText;
+    } catch (e) {
+      document.getElementById('modal-svg-wrap').innerHTML = '<div style="padding:40px;text-align:center;color:#e07070;">Failed to load certificate.</div>';
+    }
+  }
+
+  function closeModal() {
+    document.getElementById('cert-modal').style.display = 'none';
+    currentCertId = null;
+  }
+
+  document.getElementById('cert-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  function downloadCert() {
+    if (currentCertId) downloadCertById(currentCertId, currentCertNumber || 'certificate');
+  }
+
+  async function downloadCertById(id, certNumber) {
+    try {
+      const resp = await fetch(`/api/certificates/${id}/download`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('archive_token')}` }
+      });
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `certificate-${certNumber}.svg`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast('Download failed: ' + e.message, 'error');
+    }
+  }
+
+  function shareCert() {
+    if (!currentCertId) return;
+    const link = `${window.location.origin}/certificates.html?cert=${currentCertId}`;
+    navigator.clipboard.writeText(link).then(() => {
+      toast('Certificate link copied to clipboard!', 'success');
+    }).catch(() => {
+      toast('Link: ' + link, 'success');
+    });
+  }
+</script>
+<!-- GSAP -->
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+<script>
+gsap.registerPlugin(ScrollTrigger);
+gsap.from('.page-header, .stat-card, .card, .list-item, .section-block', {
+  y: 24, opacity: 0, duration: 0.65, stagger: 0.07, ease: 'power3.out', delay: 0.1
+});
+gsap.utils.toArray('.card, .list-item, tr').forEach(el => {
+  gsap.from(el, { scrollTrigger: { trigger: el, start: 'top 90%' },
+    y: 14, opacity: 0, duration: 0.45, ease: 'power2.out' });
+});
+</script>
+</body>
+</html>
